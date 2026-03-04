@@ -5,3 +5,9 @@
       context: .
       dockerfile: ReQuest/Dockerfile
 
+  request-backend:
+    image: request-backend
+    build:
+      context: .
+      dockerfile: ReQuest-backend/Dockerfile
+

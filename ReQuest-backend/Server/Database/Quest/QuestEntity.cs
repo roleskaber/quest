@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using ReQuest.Controllers.Database.UserAnswer;
 
-namespace ReQuest.Controllers.Database.Quest;
+namespace ReQuest_backend.Server.Database.Quest;
 
 public class QuestEntity
 {

@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ReQuest.Controllers.Database.User;
 
-namespace ReQuest.Controllers.Database.Quest;
+namespace ReQuest_backend.Server.Database.Quest;
 
 public class QuestRepository(QuestContext db)
 {

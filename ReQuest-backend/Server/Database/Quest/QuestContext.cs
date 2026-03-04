@@ -1,10 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+namespace ReQuest_backend.Server.Database.Quest;
 
-namespace ReQuest.Controllers.Database.User;
-
-public class UserContext : DbContext
+public class QuestContext : DbContext
 {
-    public DbSet<UserEntity> UserEntities { get; set; } = null!;
+    public DbSet<QuestEntity> QuestEntities { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
@@ -12,6 +11,6 @@ public class UserContext : DbContext
     }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<UserEntity>().ToTable("QuestEntity");
+        modelBuilder.Entity<QuestEntity>().ToTable("QuestEntity");
     }
 }

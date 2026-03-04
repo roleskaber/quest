@@ -1,4 +1,4 @@
-namespace ReQuest.Controllers.Database.User;
+namespace ReQuest_backend.Server.Database.User;
 
 public enum QuestionMode
 {

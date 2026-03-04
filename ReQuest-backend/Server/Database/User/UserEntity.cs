@@ -1,6 +1,6 @@
-using ReQuest.Controllers.Database.Quest;
+using ReQuest_backend.Server.Database.Quest;
 
-namespace ReQuest.Controllers.Database.User;
+namespace ReQuest_backend.Server.Database.User;
 
 public class UserEntity
 {
