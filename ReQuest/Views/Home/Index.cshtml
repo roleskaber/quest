@@ -1,8 +1,36 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "ReQuest | Старт";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="hero landing" id="landing-app">
+    <div class="hero__intro panel">
+        <p class="hero__kicker">Поток викторин</p>
+        <h1>ReQuest</h1>
+        <p class="hero__lead">Выбери путь: через вход в кабинет или сразу в игру.</p>
+        <div class="mode-actions">
+            <a class="btn-main" asp-controller="Home" asp-action="Auth">Вход или регистрация</a>
+            <a class="btn-secondary" asp-controller="Home" asp-action="Game">Сразу в игру</a>
+        </div>
+    </div>
+
+    <div class="panel join-home-panel" id="join-home-app">
+        <h2>Присоединиться к игре</h2>
+        <p class="panel-note">Ввод кода доступен только с главной страницы.</p>
+        <form id="join-home-form" class="quest-form" novalidate>
+            <label class="field">
+                <span>Код подключения (6 цифр)</span>
+                <input type="text" id="join-home-code" inputmode="numeric" pattern="\d{6}" minlength="6" maxlength="6" required />
+            </label>
+
+            <label class="field">
+                <span>Имя игрока</span>
+                <input type="text" id="join-home-player-name" minlength="2" maxlength="32" required />
+            </label>
+
+            <div class="actions">
+                <button type="submit" class="btn-secondary">Войти в лобби</button>
+            </div>
+        </form>
+        <p class="panel-note" id="join-home-status">После входа откроется лобби.</p>
+    </div>
+</section>

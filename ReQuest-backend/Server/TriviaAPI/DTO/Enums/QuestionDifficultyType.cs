@@ -9,5 +9,5 @@ public enum QuestionDifficultyType
     [EnumMember(Value = "medium")]
     Medium,
     [EnumMember(Value = "hard")]
-    Hаrd,
+    Hard
 }
