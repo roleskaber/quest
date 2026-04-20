@@ -8,7 +8,7 @@ using ReQuest_backend.Server.TriviaAPI.DTO;
 
 namespace ReQuest_backend.Server.Database.Quest;
 
-public class QuestRepository(QuestContext db)
+public class QuestRepository(QuestContext db) : IQuestRepository
 {
     private QuestContext Db => db;
 

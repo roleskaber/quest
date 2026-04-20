@@ -5,58 +5,64 @@
 
 	const authApp = document.getElementById("auth-app");
 	if (authApp) {
-		const form = document.getElementById("auth-form");
-		const modeInput = document.getElementById("auth-mode");
-		const nameInput = document.getElementById("auth-name");
-		const emailInput = document.getElementById("auth-email");
-		const status = document.getElementById("auth-status");
 		const apiBaseUrl = authApp.getAttribute("data-api-base-url") || "http://localhost:5134";
+		const authForms = Array.from(authApp.querySelectorAll("form[data-auth-form]"));
 
 		const rawUser = localStorage.getItem(authStorageKey);
 		if (rawUser) {
 			try {
 				const user = JSON.parse(rawUser);
-				if (nameInput && user.name) nameInput.value = user.name;
-				if (emailInput && user.email) emailInput.value = user.email;
+				authForms.forEach((form) => {
+					const nameInput = form.querySelector("[data-auth-field='name']");
+					const emailInput = form.querySelector("[data-auth-field='email']");
+					if (nameInput && user.name) nameInput.value = user.name;
+					if (emailInput && user.email) emailInput.value = user.email;
+				});
 			} catch (error) {
 				console.error(error);
 			}
 		}
 
-		form?.addEventListener("submit", async (event) => {
-			event.preventDefault();
-			const mode = modeInput?.value || "login";
-			const name = nameInput?.value?.trim() || "";
-			const email = emailInput?.value?.trim() || "";
+		authForms.forEach((form) => {
+			const mode = form.getAttribute("data-auth-form") || "login";
+			const nameInput = form.querySelector("[data-auth-field='name']");
+			const emailInput = form.querySelector("[data-auth-field='email']");
+			const status = form.querySelector(".auth-status");
 
-			if (name.length < 2 || !email.includes("@")) {
-				if (status) status.textContent = "Проверь имя и email.";
-				return;
-			}
+			form.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				const name = nameInput?.value?.trim() || "";
+				const email = emailInput?.value?.trim() || "";
 
-			if (status) status.textContent = mode === "register" ? "Регистрирую профиль..." : "Выполняю вход...";
+				if (name.length < 2 || !email.includes("@")) {
+					if (status) status.textContent = "Проверь имя и email.";
+					return;
+				}
 
-			try {
-				const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json"
-					},
-					body: JSON.stringify({ name, email })
-				});
+				if (status) status.textContent = mode === "register" ? "Регистрирую профиль..." : "Выполняю вход...";
 
-				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				try {
+					const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json"
+						},
+						body: JSON.stringify({ name, email })
+					});
 
-				const payload = await response.json();
-				localStorage.setItem(authStorageKey, JSON.stringify({ name: payload.name, email: payload.email }));
-				localStorage.setItem(authTokenStorageKey, payload.token);
+					if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-				if (status) status.textContent = mode === "register" ? "Регистрация успешна." : "Вход успешен.";
-				window.location.href = "/Home/Cabinet";
-			} catch (error) {
-				if (status) status.textContent = "Не удалось выполнить вход. Проверь backend.";
-				console.error(error);
-			}
+					const payload = await response.json();
+					localStorage.setItem(authStorageKey, JSON.stringify({ name: payload.name, email: payload.email }));
+					localStorage.setItem(authTokenStorageKey, payload.token);
+
+					if (status) status.textContent = mode === "register" ? "Регистрация успешна." : "Вход успешен.";
+					window.location.href = "/Home/Cabinet";
+				} catch (error) {
+					if (status) status.textContent = "Не удалось выполнить вход. Проверь backend.";
+					console.error(error);
+				}
+			});
 		});
 
 		return;
@@ -105,6 +111,61 @@
 		return;
 	}
 
+	const joinHomeApp = document.getElementById("join-home-app");
+	if (joinHomeApp) {
+		const joinHomeForm = document.getElementById("join-home-form");
+		const joinHomeCodeInput = document.getElementById("join-home-code");
+		const joinHomePlayerNameInput = document.getElementById("join-home-player-name");
+		const joinHomeStatus = document.getElementById("join-home-status");
+		const joinApiBaseUrl = joinHomeApp.getAttribute("data-api-base-url") || "http://localhost:5134";
+
+		const showHomeStatus = (text, isError = false) => {
+			if (!joinHomeStatus) return;
+			joinHomeStatus.textContent = text;
+			joinHomeStatus.classList.toggle("status--error", isError);
+		};
+
+		joinHomeForm?.addEventListener("submit", async (event) => {
+			event.preventDefault();
+			const code = joinHomeCodeInput?.value?.trim() || "";
+			const playerName = joinHomePlayerNameInput?.value?.trim() || "";
+
+			if (!/^\d{6}$/.test(code)) {
+				showHomeStatus("Код игры должен состоять из 6 цифр.", true);
+				return;
+			}
+
+			if (!playerName || playerName.length < 2) {
+				showHomeStatus("Имя игрока должно быть минимум 2 символа.", true);
+				return;
+			}
+
+			showHomeStatus("Подключаю к игре...");
+
+			try {
+				const response = await fetch(`${joinApiBaseUrl}/api/game/join`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({ code, playerName })
+				});
+
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+				const lobby = await response.json();
+				window.location.href = `/Home/Game?code=${encodeURIComponent(lobby.code)}&playerName=${encodeURIComponent(playerName)}`;
+			} catch (error) {
+				showHomeStatus("Не удалось подключиться. Проверь код игры.", true);
+				console.error(error);
+			}
+		});
+
+		joinHomeCodeInput?.addEventListener("input", () => {
+			joinHomeCodeInput.value = joinHomeCodeInput.value.replace(/\D/g, "").slice(0, 6);
+		});
+	}
+
 	const appRoot = document.getElementById("quest-app");
 	if (!appRoot) return;
 
@@ -120,11 +181,27 @@
 	const lobbyQuestions = document.getElementById("lobby-questions");
 	const playersList = document.getElementById("players-list");
 	const generationPreview = document.getElementById("generation-preview");
+	const controlPanel = document.getElementById("game-control-panel");
+	const controlGameCode = document.getElementById("control-game-code");
+	const controlStartGameButton = document.getElementById("control-start-game");
+	const controlNextQuestionButton = document.getElementById("control-next-question");
+	const gamePanel = document.getElementById("game-panel");
+	const gameStatus = document.getElementById("game-status");
+	const gameProgress = document.getElementById("game-progress");
+	const gameQuestion = document.getElementById("game-question");
+	const gameAnswers = document.getElementById("game-answers");
+	const gameScoreboard = document.getElementById("game-scoreboard");
+	const gameResult = document.getElementById("game-result");
 	const apiBaseUrl = appRoot.getAttribute("data-api-base-url") || "http://localhost:5134";
 	const authToken = localStorage.getItem(authTokenStorageKey);
 	let currentCode = null;
 	let lobbyTimerId = null;
-    const hostStorageKey = "request.host.registration";
+	let gameStateTimerId = null;
+	const hostStorageKey = "request.host.registration";
+	let gameQuestions = [];
+	let gameState = null;
+	let localAnswerByQuestionIndex = {};
+	let currentPlayerName = "";
 
 	const setStatus = (text, isError = false) => {
 		if (!status) return;
@@ -151,16 +228,6 @@
 			count,
 			difficulty,
 			choice
-		};
-	};
-
-	const buildJoinPayload = () => {
-		const codeInput = document.getElementById("join-code");
-		const playerNameInput = document.getElementById("player-name");
-
-		return {
-			code: codeInput?.value?.trim() || "",
-			playerName: playerNameInput?.value?.trim() || ""
 		};
 	};
 
@@ -226,6 +293,9 @@
 		currentCode = lobby.code;
 		renderLobby(lobby);
 		startLobbyPolling();
+		await refreshGameQuestions(lobby.code);
+		await refreshGameState();
+		startGameStatePolling();
 		setStatus(`Подключено к игре ${lobby.code}`);
 	};
 
@@ -250,6 +320,284 @@
 		item.appendChild(categoryTag);
 		item.appendChild(questionNode);
 		target.replaceWith(item);
+	};
+
+	const setGameStatus = (text, isError = false) => {
+		if (!gameStatus) return;
+		gameStatus.textContent = text;
+		gameStatus.classList.toggle("status--error", isError);
+	};
+
+	const shuffleAnswers = (answers) => {
+		const result = [...answers];
+		for (let i = result.length - 1; i > 0; i -= 1) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[result[i], result[j]] = [result[j], result[i]];
+		}
+		return result;
+	};
+
+	const prepareQuestions = (questions) => {
+		return questions.map((question) => ({
+			...question,
+			shuffledAnswers: shuffleAnswers([question.correctAnswer, ...(question.incorrectAnswers || [])])
+		}));
+	};
+
+	const sameName = (left, right) => {
+		return (left || "").trim().toLowerCase() === (right || "").trim().toLowerCase();
+	};
+
+	const getPlayerName = () => {
+		const fromQuery = new URLSearchParams(window.location.search).get("playerName")?.trim();
+		if (fromQuery) return fromQuery;
+
+		const rawUser = localStorage.getItem(authStorageKey);
+		if (!rawUser) return "";
+
+		try {
+			const user = JSON.parse(rawUser);
+			return user?.name?.trim() || "";
+		} catch {
+			return "";
+		}
+	};
+
+	const setControlButtons = () => {
+		const isHost = !!gameState && sameName(gameState.hostName, currentPlayerName);
+
+		if (controlStartGameButton) {
+			controlStartGameButton.disabled = !isHost || !gameState || gameState.isStarted;
+		}
+
+		if (controlNextQuestionButton) {
+			controlNextQuestionButton.disabled = !isHost || !gameState || !gameState.isStarted || gameState.isFinished;
+		}
+	};
+
+	const renderScoreboard = () => {
+		if (!gameScoreboard || !gameState) return;
+		gameScoreboard.innerHTML = "";
+
+		const sortedPlayers = [...(gameState.players || [])].sort((a, b) => {
+			const scoreA = gameState.scores?.[a] || 0;
+			const scoreB = gameState.scores?.[b] || 0;
+			return scoreB - scoreA;
+		});
+
+		sortedPlayers.forEach((player) => {
+			const item = document.createElement("li");
+			const score = gameState.scores?.[player] || 0;
+			item.textContent = `${player} - ${score}`;
+			gameScoreboard.appendChild(item);
+		});
+	};
+
+	const refreshGameQuestions = async (code) => {
+		if (!code) return;
+
+		const response = await fetch(`${apiBaseUrl}/api/game/questions/${encodeURIComponent(code)}`);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+		const questions = await response.json();
+		if (!Array.isArray(questions)) {
+			gameQuestions = [];
+			return;
+		}
+
+		gameQuestions = prepareQuestions(questions);
+	};
+
+	const submitAnswer = async (answer) => {
+		if (!gameState || !currentCode || !currentPlayerName) return;
+
+		const questionIndex = gameState.currentQuestionIndex;
+		if (questionIndex < 0) return;
+
+		try {
+			await fetch(`${apiBaseUrl}/api/game/answer`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({
+					code: currentCode,
+					playerName: currentPlayerName,
+					answer
+				})
+			});
+
+			localAnswerByQuestionIndex[questionIndex] = answer;
+			await refreshGameState();
+		} catch (error) {
+			setGameStatus("Не удалось отправить ответ.", true);
+			console.error(error);
+		}
+	};
+
+	const renderQuestion = () => {
+		if (!gameState) return;
+
+		const questionIndex = gameState.currentQuestionIndex;
+		const total = gameState.questionsCount || 0;
+		if (questionIndex < 0 || questionIndex >= total || total === 0) {
+			if (gameProgress) gameProgress.textContent = "Вопрос 0/0";
+			if (gameQuestion) gameQuestion.textContent = "Ожидаем старт игры от ведущего.";
+			if (gameAnswers) gameAnswers.innerHTML = "";
+			return;
+		}
+
+		const question = gameQuestions[questionIndex];
+		if (!question) {
+			if (gameProgress) gameProgress.textContent = `Вопрос ${questionIndex + 1}/${total}`;
+			if (gameQuestion) gameQuestion.textContent = "Вопрос загружается...";
+			if (gameAnswers) gameAnswers.innerHTML = "";
+			return;
+		}
+
+		if (gameProgress) gameProgress.textContent = `Вопрос ${questionIndex + 1}/${total}`;
+		if (gameQuestion) gameQuestion.textContent = question.question;
+		if (gameAnswers) gameAnswers.innerHTML = "";
+
+		const currentPlayerAnswered = (gameState.answeredPlayers || []).some((player) => sameName(player, currentPlayerName));
+		const selectedAnswer = localAnswerByQuestionIndex[questionIndex] || "";
+
+		(question.shuffledAnswers || []).forEach((answer) => {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.className = "answer-btn";
+			button.textContent = answer;
+
+			const shouldDisable = currentPlayerAnswered || gameState.isFinished;
+			button.disabled = shouldDisable;
+
+			if (currentPlayerAnswered && selectedAnswer) {
+				if (answer === question.correctAnswer) button.classList.add("is-correct");
+				if (answer === selectedAnswer && answer !== question.correctAnswer) button.classList.add("is-wrong");
+			}
+
+			button.addEventListener("click", () => {
+				if (button.disabled) return;
+				void submitAnswer(answer);
+			});
+
+			gameAnswers?.appendChild(button);
+		});
+	};
+
+	const renderGameState = () => {
+		if (!gameState) return;
+
+		if (controlPanel) controlPanel.classList.remove("hidden");
+		if (controlGameCode) controlGameCode.textContent = `Код: ${gameState.code}`;
+		gamePanel?.classList.remove("hidden");
+		renderScoreboard();
+		setControlButtons();
+
+		if (!currentPlayerName) {
+			setGameStatus("Имя игрока не определено. Подключись заново с главной страницы.", true);
+		}
+
+		if (!gameState.isStarted) {
+			if (gameResult) gameResult.textContent = "Ожидаем старт игры от ведущего.";
+			setGameStatus("Лобби собрано. Ждем старта.");
+			renderQuestion();
+			return;
+		}
+
+		if (gameState.isFinished) {
+			setGameStatus("Игра завершена");
+			if (gameResult) gameResult.textContent = "Раунд завершен. Итоговая таблица выше.";
+			if (gameAnswers) gameAnswers.innerHTML = "";
+			if (gameQuestion) gameQuestion.textContent = "Спасибо за игру";
+			if (gameProgress) gameProgress.textContent = `Итог: ${gameState.questionsCount}/${gameState.questionsCount}`;
+			return;
+		}
+
+		if (gameResult) gameResult.textContent = "";
+		setGameStatus("Выбери ответ");
+		renderQuestion();
+	};
+
+	async function refreshGameState() {
+		if (!currentCode) return;
+
+		try {
+			const response = await fetch(`${apiBaseUrl}/api/game/state/${encodeURIComponent(currentCode)}`);
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+			gameState = await response.json();
+			renderGameState();
+		} catch (error) {
+			setGameStatus("Не удалось получить состояние игры.", true);
+			console.error(error);
+		}
+	}
+
+	const startGameStatePolling = () => {
+		if (gameStateTimerId) {
+			clearInterval(gameStateTimerId);
+			gameStateTimerId = null;
+		}
+
+		if (!currentCode) return;
+
+		gameStateTimerId = setInterval(() => {
+			void refreshGameState();
+		}, 2000);
+	};
+
+	const triggerStartGame = async () => {
+		if (!currentCode) return;
+
+		try {
+			const response = await fetch(`${apiBaseUrl}/api/game/start`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({ code: currentCode })
+			});
+
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			localAnswerByQuestionIndex = {};
+			await refreshGameState();
+		} catch (error) {
+			setGameStatus("Не удалось запустить игру.", true);
+			console.error(error);
+		}
+	};
+
+	const triggerNextQuestion = async () => {
+		if (!currentCode) return;
+
+		try {
+			const response = await fetch(`${apiBaseUrl}/api/game/next`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({ code: currentCode })
+			});
+
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			await refreshGameState();
+		} catch (error) {
+			setGameStatus("Не удалось переключить вопрос.", true);
+			console.error(error);
+		}
+	};
+
+	const showRoundControls = () => {
+		currentPlayerName = getPlayerName();
+		if (controlPanel) controlPanel.classList.remove("hidden");
+		gamePanel?.classList.remove("hidden");
+		if (gameResult) gameResult.textContent = "";
+		if (gameAnswers) gameAnswers.innerHTML = "";
+		if (gameQuestion) gameQuestion.textContent = "Ожидаем старт игры от ведущего.";
+		if (gameProgress) gameProgress.textContent = "Вопрос 0/0";
+		setGameStatus("Ожидание старта");
+		setControlButtons();
 	};
 
 	const showMode = (mode) => {
@@ -391,7 +739,7 @@
 	createForm?.addEventListener("submit", async (event) => {
 		event.preventDefault();
 		const payload = buildCreatePayload();
-        resetTracker();
+		resetTracker();
 
 		if (!localStorage.getItem(authTokenStorageKey)) {
 			setStatus("Сначала войдите или зарегистрируйтесь, чтобы создать игру.", true);
@@ -433,6 +781,10 @@
 			currentCode = lobby.code;
 			renderLobby(lobby);
 			startLobbyPolling();
+			await refreshGameQuestions(lobby.code);
+			await refreshGameState();
+			startGameStatePolling();
+			showRoundControls();
 			setStatus(`Игра создана. Код: ${lobby.code}`);
 		} catch (error) {
 			setStatus("Ошибка создания игры. Проверь backend и базу данных.", true);
@@ -456,6 +808,7 @@
 			setStatus("Не удалось загрузить лобби.", true);
 			console.error(error);
 		});
+		showRoundControls();
 	} else if (createButton && !authToken) {
 		createButton.disabled = true;
 		setStatus("Для создания игры нужна авторизация.", true);
@@ -464,61 +817,11 @@
 		showMode("create");
 	}
 
-	const joinHomeApp = document.getElementById("join-home-app");
-	if (joinHomeApp) {
-		const joinHomeForm = document.getElementById("join-home-form");
-		const joinHomeCodeInput = document.getElementById("join-home-code");
-		const joinHomePlayerNameInput = document.getElementById("join-home-player-name");
-		const joinHomeStatus = document.getElementById("join-home-status");
+	controlStartGameButton?.addEventListener("click", () => {
+		void triggerStartGame();
+	});
 
-		const showHomeStatus = (text, isError = false) => {
-			if (joinHomeStatus) {
-				joinHomeStatus.textContent = text;
-				joinHomeStatus.classList.toggle("status--error", isError);
-				return;
-			}
-
-			setStatus(text, isError);
-		};
-
-		joinHomeForm?.addEventListener("submit", async (event) => {
-			event.preventDefault();
-			const code = joinHomeCodeInput?.value?.trim() || "";
-			const playerName = joinHomePlayerNameInput?.value?.trim() || "";
-
-			if (!/^\d{6}$/.test(code)) {
-				showHomeStatus("Код игры должен состоять из 6 цифр.", true);
-				return;
-			}
-
-			if (!playerName || playerName.length < 2) {
-				showHomeStatus("Имя игрока должно быть минимум 2 символа.", true);
-				return;
-			}
-
-			showHomeStatus("Подключаю к игре...");
-
-			try {
-				const response = await fetch(`${apiBaseUrl}/api/game/join`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json"
-					},
-					body: JSON.stringify({ code, playerName })
-				});
-
-				if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-				const lobby = await response.json();
-				window.location.href = `/Home/Game?code=${encodeURIComponent(lobby.code)}`;
-			} catch (error) {
-				showHomeStatus("Не удалось подключиться. Проверь код игры.", true);
-				console.error(error);
-			}
-		});
-
-		joinHomeCodeInput?.addEventListener("input", () => {
-			joinHomeCodeInput.value = joinHomeCodeInput.value.replace(/\D/g, "").slice(0, 6);
-		});
-	}
+	controlNextQuestionButton?.addEventListener("click", () => {
+		void triggerNextQuestion();
+	});
 });

@@ -2,9 +2,12 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using ReQuest_backend.Server.Auth;
 using ReQuest_backend.Server;
+using ReQuest_backend.Server.Database.Quest;
 using ReQuest_backend.Server.QuestSession;
 using ReQuest_backend.Web.DTO;
 
@@ -14,13 +17,20 @@ namespace ReQuest_backend.Web;
 [ApiController]
 public class GameController : ControllerBase
 {
-    private readonly QuestService _questService;
-    private readonly GameSessionStore _gameSessionStore;
-    private readonly AuthTokenService _authTokenService;
+    private readonly IQuestService _questService;
+    private readonly IQuestRepository _questRepository;
+    private readonly IGameSessionStore _gameSessionStore;
+    private readonly IAuthTokenService _authTokenService;
 
-    public GameController(QuestService questService, GameSessionStore gameSessionStore, AuthTokenService authTokenService)
+    public GameController(
+        IQuestService questService,
+        IQuestRepository questRepository,
+        IGameSessionStore gameSessionStore,
+        IAuthTokenService authTokenService
+    )
     {
         _questService = questService;
+        _questRepository = questRepository;
         _gameSessionStore = gameSessionStore;
         _authTokenService = authTokenService;
     }
@@ -118,6 +128,97 @@ public class GameController : ControllerBase
         ));
     }
 
+    [HttpGet("questions/{code}")]
+    public async Task<ActionResult<List<QuestResponse>>> GetQuestions(string code)
+    {
+        var session = _gameSessionStore.Get(code.Trim());
+        if (session == null) return NotFound("Игра с таким кодом не найдена.");
+
+        var allQuests = await _questService.GetAllQuests();
+        var byId = allQuests.ToDictionary(q => q.Id);
+        var sessionQuests = session.QuestionIds
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .ToList();
+
+        var response = sessionQuests.Select(quest =>
+        {
+            var incorrectAnswers = JsonSerializer.Deserialize<List<string>>(quest.IncorrectAnswersJson) ?? [];
+            return QuestResponse.FromEntity(quest, incorrectAnswers);
+        }).ToList();
+
+        return Ok(response);
+    }
+
+    [HttpGet("state/{code}")]
+    public ActionResult<GameStateResponse> GetState(string code)
+    {
+        var state = _gameSessionStore.GetState(code.Trim());
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    [HttpPost("start")]
+    public ActionResult<GameStateResponse> Start([FromBody] GameCodeRequest request)
+    {
+        var state = _gameSessionStore.Start(request.Code.Trim());
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    [HttpPost("next")]
+    public ActionResult<GameStateResponse> NextQuestion([FromBody] GameCodeRequest request)
+    {
+        var state = _gameSessionStore.NextQuestion(request.Code.Trim());
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    [HttpPost("answer")]
+    public async Task<ActionResult<GameStateResponse>> SubmitAnswer([FromBody] SubmitAnswerRequest request)
+    {
+        var session = _gameSessionStore.Get(request.Code.Trim());
+        if (session == null) return NotFound("Игра с таким кодом не найдена.");
+
+        if (session.CurrentQuestionIndex < 0 || session.CurrentQuestionIndex >= session.QuestionIds.Count)
+        {
+            return BadRequest("Нет активного вопроса.");
+        }
+
+        var questionId = session.QuestionIds[session.CurrentQuestionIndex];
+        var question = await _questRepository.GetById(questionId);
+        if (question == null) return NotFound("Вопрос не найден.");
+
+        var isCorrect = string.Equals(
+            request.Answer.Trim(),
+            question.CorrectAnswer.Trim(),
+            StringComparison.OrdinalIgnoreCase
+        );
+
+        var state = _gameSessionStore.SubmitAnswer(request.Code.Trim(), request.PlayerName.Trim(), isCorrect);
+        if (state == null) return NotFound("Игра с таким кодом не найдена.");
+
+        return Ok(MapState(state));
+    }
+
+    private static GameStateResponse MapState(GameSessionState state)
+    {
+        return new GameStateResponse(
+            state.Code,
+            state.HostName,
+            state.IsStarted,
+            state.IsFinished,
+            state.CurrentQuestionIndex,
+            state.QuestionsCount,
+            state.Players,
+            state.Scores,
+            state.AnsweredPlayers
+        );
+    }
+
     private async Task WriteSseEvent(string eventName, object payload, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(payload);
@@ -126,7 +227,7 @@ public class GameController : ControllerBase
         await Response.Body.FlushAsync(cancellationToken);
     }
 
-    private bool TryGetAuthenticatedUser(out AuthTokenService.AuthProfile? profile)
+    private bool TryGetAuthenticatedUser(out AuthProfile? profile)
     {
         profile = null;
 

@@ -13,15 +13,15 @@ using ReQuest_backend.Server.TriviaAPI.DTO.Enums;
 
 namespace ReQuest_backend.Server;
 
-public class QuestService
+public class QuestService : IQuestService
 {
     private readonly TriviaApiService _triviaApiService;
-    private readonly QuestRepository _questRepository;
+    private readonly IQuestRepository _questRepository;
     private readonly QuestionTranslationService _questionTranslationService;
 
     public QuestService(
         TriviaApiService triviaApiService,
-        QuestRepository questRepository,
+        IQuestRepository questRepository,
         QuestionTranslationService questionTranslationService
     )
     {

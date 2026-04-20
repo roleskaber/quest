@@ -4,30 +4,55 @@
 }
 
 <section class="hero auth-page" data-api-base-url="@apiBaseUrl" id="auth-app">
-    <div class="panel">
-        <p class="hero__kicker">Доступ в кабинет</p>
-        <h1>Вход или регистрация</h1>
-        <form id="auth-form" class="quest-form" novalidate>
-            <label class="field">
-                <span>Режим</span>
-                <select id="auth-mode">
-                    <option value="login">Вход</option>
-                    <option value="register">Регистрация</option>
-                </select>
-            </label>
+    <div class="auth-stack">
+        <div class="panel auth-card" id="register-card">
+            <p class="hero__kicker">Доступ в кабинет</p>
+            <h1>Регистрация</h1>
+            <p class="panel-note">Создай профиль, чтобы сохранить прогресс и возвращаться в кабинет.</p>
+            <form id="register-form" class="quest-form" data-auth-form="register" novalidate>
+                <label class="field">
+                    <span>Имя</span>
+                    <input id="register-name" data-auth-field="name" type="text" minlength="2" maxlength="32" required />
+                </label>
 
-            <label class="field">
-                <span>Имя</span>
-                <input id="auth-name" type="text" minlength="2" maxlength="32" required />
-            </label>
+                <label class="field">
+                    <span>Email</span>
+                    <input id="register-email" data-auth-field="email" type="email" maxlength="64" required />
+                </label>
 
-            <label class="field">
-                <span>Email</span>
-                <input id="auth-email" type="email" maxlength="64" required />
-            </label>
+                <div class="auth-status" id="register-status" aria-live="polite"></div>
+                <button type="submit" class="btn-main">Зарегистрироваться</button>
 
-            <button type="submit" class="btn-main">Продолжить</button>
-        </form>
-        <p class="panel-note" id="auth-status">После входа откроется кабинет.</p>
+                <p class="auth-switch">
+                    Уже есть аккаунт?
+                    <a href="#login-card">Войти</a>
+                </p>
+            </form>
+        </div>
+
+        <div class="panel auth-card auth-card--login" id="login-card">
+            <p class="hero__kicker">Вход</p>
+            <h2>Вход</h2>
+            <p class="panel-note">Войди в существующий профиль, чтобы продолжить игру.</p>
+            <form id="login-form" class="quest-form" data-auth-form="login" novalidate>
+                <label class="field">
+                    <span>Имя</span>
+                    <input id="login-name" data-auth-field="name" type="text" minlength="2" maxlength="32" required />
+                </label>
+
+                <label class="field">
+                    <span>Email</span>
+                    <input id="login-email" data-auth-field="email" type="email" maxlength="64" required />
+                </label>
+
+                <div class="auth-status" id="login-status" aria-live="polite"></div>
+                <button type="submit" class="btn-main">Войти</button>
+
+                <p class="auth-switch">
+                    Нет аккаунта?
+                    <a href="#register-card">Зарегистрироваться</a>
+                </p>
+            </form>
+        </div>
     </div>
 </section>

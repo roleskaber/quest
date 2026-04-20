@@ -207,11 +207,61 @@ main[role="main"] > section {
   display: grid;
   align-items: center;
   padding-block: clamp(2rem, 8vh, 5rem);
+  max-width: 920px;
 }
 
-.auth-page .panel {
+.auth-stack {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+}
+
+.auth-card {
   width: min(100%, 440px);
   margin: 0 auto;
+}
+
+.auth-card--login {
+  width: min(100%, 480px);
+}
+
+.auth-card h1,
+.auth-card h2 {
+  margin: 0;
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.auth-card h2 {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+}
+
+.auth-status {
+  min-height: 1.2rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.auth-switch {
+  margin: 0.1rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+}
+
+.auth-switch a {
+  color: var(--brand-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.auth-card .panel-note {
+  margin-bottom: 0.2rem;
 }
 
 .results-head {
@@ -302,6 +352,7 @@ main[role="main"] > section {
   display: none;
   gap: 1rem;
   align-self: start;
+  grid-template-columns: 1fr;
 }
 
 .game-workspace.is-active .create-side {
@@ -310,6 +361,10 @@ main[role="main"] > section {
 
 .create-panel .quest-form {
   transition: opacity 180ms ease, max-height 180ms ease, margin 180ms ease, padding 180ms ease;
+}
+
+.create-panel .game-control {
+  display: none;
 }
 
 .create-panel.is-active .quest-form,
@@ -323,9 +378,14 @@ main[role="main"] > section {
   border: 0;
 }
 
+.create-panel.is-active .game-control,
+.create-panel.read-only .game-control {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .create-side .generation-tracker {
   margin-top: 0;
-  grid-column: 2;
 }
 
 .game-workspace.is-active .generation-tracker {
@@ -341,6 +401,79 @@ main[role="main"] > section {
   margin-top: 0;
   display: grid;
   gap: 0.7rem;
+}
+
+.game-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.game-scoreboard {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: #fff;
+}
+
+.game-scoreboard li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px dashed var(--line);
+  color: var(--ink-soft);
+}
+
+.game-scoreboard li:last-child {
+  border-bottom: none;
+}
+
+.game-question {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: #fff;
+  padding: 0.8rem;
+  color: var(--ink);
+  line-height: 1.4;
+  min-height: 88px;
+}
+
+.game-answers {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.answer-btn {
+  width: 100%;
+  border-radius: 0.8rem;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.answer-btn:hover {
+  transform: translateY(-1px);
+}
+
+.answer-btn:disabled {
+  cursor: default;
+}
+
+.answer-btn.is-correct {
+  border-color: rgba(31, 122, 90, 0.55);
+  background: rgba(31, 122, 90, 0.12);
+}
+
+.answer-btn.is-wrong {
+  border-color: rgba(184, 50, 45, 0.55);
+  background: rgba(184, 50, 45, 0.1);
 }
 
 .preview-item {

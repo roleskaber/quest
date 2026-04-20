@@ -58,6 +58,14 @@
                     <button type="submit" class="btn-main">Создать игру</button>
                 </div>
             </form>
+
+            <div class="game-control hidden" id="game-control-panel">
+                <div class="lobby-code" id="control-game-code">Код: -</div>
+                <div class="actions">
+                    <button type="button" id="control-start-game" class="btn-main" disabled>Начать игру</button>
+                    <button type="button" id="control-next-question" class="btn-secondary" disabled>Следующий вопрос</button>
+                </div>
+            </div>
         </div>
 
         <div class="create-side hidden" id="create-side">
@@ -75,6 +83,20 @@
                 <div id="lobby-questions" class="lobby-meta">Вопросов: -</div>
                 <h3 class="players-title">Игроки</h3>
                 <ul id="players-list" class="players-list"></ul>
+            </div>
+
+            <div class="panel panel--results game-panel hidden" id="game-panel">
+                <div class="results-head">
+                    <h2>Раунд</h2>
+                    <span id="game-status" class="status">Ожидание старта</span>
+                </div>
+
+                <div id="game-progress" class="lobby-meta">Вопрос 0/0</div>
+                <div id="game-question" class="game-question">Нажми "Начать игру", когда лобби собрано.</div>
+                <div id="game-answers" class="game-answers"></div>
+                <ul id="game-scoreboard" class="game-scoreboard"></ul>
+
+                <div id="game-result" class="empty-state"></div>
             </div>
         </div>
     </div>

@@ -8,9 +8,9 @@ namespace ReQuest_backend.Web;
 [ApiController]
 public class AuthController : ControllerBase
 {
-    private readonly AuthTokenService _authTokenService;
+    private readonly IAuthTokenService _authTokenService;
 
-    public AuthController(AuthTokenService authTokenService)
+    public AuthController(IAuthTokenService authTokenService)
     {
         _authTokenService = authTokenService;
     }

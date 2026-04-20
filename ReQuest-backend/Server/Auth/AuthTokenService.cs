@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.DataProtection;
 
 namespace ReQuest_backend.Server.Auth;
 
-public class AuthTokenService
+public sealed record AuthProfile(string Name, string Email, DateTimeOffset IssuedAt);
+
+public class AuthTokenService : IAuthTokenService
 {
     private const string ProtectorPurpose = "ReQuest_backend.AuthTokenService.v1";
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromDays(30);
@@ -40,5 +42,4 @@ public class AuthTokenService
         }
     }
 
-    public sealed record AuthProfile(string Name, string Email, DateTimeOffset IssuedAt);
 }

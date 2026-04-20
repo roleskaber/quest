@@ -35,10 +35,10 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient<TriviaApiService>();
 builder.Services.AddHttpClient<QuestionTranslationService>();
 builder.Services.AddDbContext<QuestContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddSingleton<GameSessionStore>();
-builder.Services.AddSingleton<AuthTokenService>();
-builder.Services.AddScoped<QuestRepository>();
-builder.Services.AddScoped<QuestService>();
+builder.Services.AddSingleton<IGameSessionStore, GameSessionStore>();
+builder.Services.AddSingleton<IAuthTokenService, AuthTokenService>();
+builder.Services.AddScoped<IQuestRepository, QuestRepository>();
+builder.Services.AddScoped<IQuestService, QuestService>();
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
@@ -52,6 +52,30 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+
+var programLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var gameSessionStore = app.Services.GetRequiredService<IGameSessionStore>();
+
+gameSessionStore.SessionCreated += (_, args) =>
+{
+    programLogger.LogInformation(
+        "Game session created. Code: {Code}, Host: {HostName}, Questions: {QuestionCount}",
+        args.Code,
+        args.HostName,
+        args.QuestionCount
+    );
+};
+
+gameSessionStore.PlayerJoined += (_, args) =>
+{
+    programLogger.LogInformation(
+        "Player joined session. Code: {Code}, Host: {HostName}, Player: {PlayerName}, PlayersCount: {PlayersCount}",
+        args.Code,
+        args.HostName,
+        args.PlayerName,
+        args.PlayersCount
+    );
+};
 
 using (var scope = app.Services.CreateScope())
 {

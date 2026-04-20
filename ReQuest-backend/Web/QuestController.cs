@@ -12,9 +12,9 @@ namespace ReQuest_backend.Web;
 [ApiController]
 public class QuestController : ControllerBase
 {
-    private readonly QuestService _questService;
+    private readonly IQuestService _questService;
 
-    public QuestController(QuestService questService)
+    public QuestController(IQuestService questService)
     {
         _questService = questService;
     }
