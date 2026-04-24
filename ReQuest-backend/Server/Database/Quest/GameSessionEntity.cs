@@ -11,6 +11,8 @@ public class GameSessionEntity
     public required string ScoresJson { get; set; }
     public required string AnsweredPlayersJson { get; set; }
     public int CurrentQuestionIndex { get; set; }
+    public DateTimeOffset? QuestionStartedAt { get; set; }
+    public int QuestionTimeLimitSeconds { get; set; } = 20;
     public bool IsStarted { get; set; }
     public bool IsFinished { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

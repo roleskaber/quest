@@ -16,6 +16,10 @@ public record GameStateResponse(
     int CurrentQuestionIndex,
     [property: JsonPropertyName("questionsCount")]
     int QuestionsCount,
+    [property: JsonPropertyName("questionStartedAt")]
+    DateTimeOffset? QuestionStartedAt,
+    [property: JsonPropertyName("questionTimeLimitSeconds")]
+    int QuestionTimeLimitSeconds,
     [property: JsonPropertyName("players")]
     List<string> Players,
     [property: JsonPropertyName("scores")]

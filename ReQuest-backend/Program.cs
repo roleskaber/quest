@@ -76,6 +76,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<QuestContext>();
     db.Database.EnsureCreated();
+    db.Database.ExecuteSqlRaw(
+        "ALTER TABLE IF EXISTS game_sessions ADD COLUMN IF NOT EXISTS question_started_at TIMESTAMPTZ NULL;"
+    );
+    db.Database.ExecuteSqlRaw(
+        "ALTER TABLE IF EXISTS game_sessions ADD COLUMN IF NOT EXISTS question_time_limit_seconds INTEGER NOT NULL DEFAULT 20;"
+    );
 }
 
 if (app.Environment.IsDevelopment()) app.MapOpenApi();

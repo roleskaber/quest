@@ -256,6 +256,8 @@ public class GameController : ControllerBase
             state.IsFinished,
             state.CurrentQuestionIndex,
             state.QuestionsCount,
+            state.QuestionStartedAt,
+            state.QuestionTimeLimitSeconds,
             state.Players,
             state.Scores,
             state.AnsweredPlayers

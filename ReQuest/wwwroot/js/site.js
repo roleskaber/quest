@@ -1,5 +1,5 @@
 ﻿document.addEventListener("DOMContentLoaded", () => {
-    const defaultApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:5134`;
+    const defaultApiBaseUrl = 'http://localhost:5134';
     const authStorageKey = "request.user.profile";
     const authTokenStorageKey = "request.auth.token";
     const authModeStorageKey = "request.auth.mode";
@@ -7,7 +7,7 @@
 
     const authApp = document.getElementById("auth-app");
     if (authApp) {
-        const apiBaseUrl = authApp.getAttribute("data-api-base-url") || defaultApiBaseUrl;
+        const apiBaseUrl = defaultApiBaseUrl;
         const authForms = Array.from(authApp.querySelectorAll("form[data-auth-form]"));
         const authCards = Array.from(authApp.querySelectorAll("[data-auth-card]"));
         const authSwitches = Array.from(authApp.querySelectorAll("[data-auth-switch]"));
@@ -143,7 +143,7 @@
         const joinHomeCodeInput = document.getElementById("join-home-code");
         const joinHomePlayerNameInput = document.getElementById("join-home-player-name");
         const joinHomeStatus = document.getElementById("join-home-status");
-        const joinApiBaseUrl = joinHomeApp.getAttribute("data-api-base-url") || defaultApiBaseUrl;
+        const joinApiBaseUrl = defaultApiBaseUrl;
 
         const showHomeStatus = (text, isError = false) => {
             if (!joinHomeStatus) return;
@@ -221,11 +221,13 @@
     const gamePanelTitle = document.getElementById("game-panel-title");
     const gameStatus = document.getElementById("game-status");
     const gameProgress = document.getElementById("game-progress");
+    const gameTimer = document.getElementById("game-timer");
     const gameQuestion = document.getElementById("game-question");
     const gameAnswers = document.getElementById("game-answers");
     const gameScoreboard = document.getElementById("game-scoreboard");
     const gameResult = document.getElementById("game-result");
-    const apiBaseUrl = appRoot.getAttribute("data-api-base-url") || defaultApiBaseUrl;
+    const kickedBanner = document.getElementById("kicked-banner");
+    const apiBaseUrl = defaultApiBaseUrl;
     const authToken = localStorage.getItem(authTokenStorageKey);
     let currentCode = null;
     let lobbyTimerId = null;
@@ -235,8 +237,78 @@
     let gameState = null;
     let localAnswerByQuestionIndex = {};
     let currentPlayerName = "";
+    let questionTimerId = null;
+    let isKickedFromGame = false;
 
     const getIsHost = () => !!gameState && sameName(gameState.hostName, currentPlayerName);
+
+    const getQuestionDeadlineMs = () => {
+        if (!gameState?.questionStartedAt || !gameState?.questionTimeLimitSeconds) return null;
+        const started = Date.parse(gameState.questionStartedAt);
+        if (Number.isNaN(started)) return null;
+        return started + (gameState.questionTimeLimitSeconds * 1000);
+    };
+
+    const getIsCurrentPlayerInSession = () => {
+        if (!gameState || !currentPlayerName) return false;
+        if (getIsHost()) return true;
+        return (gameState.players || []).some((player) => sameName(player, currentPlayerName));
+    };
+
+    const stopQuestionTimer = () => {
+        if (!questionTimerId) return;
+        clearInterval(questionTimerId);
+        questionTimerId = null;
+    };
+
+    const renderWaitingQuestion = () => {
+        if (!gameQuestion) return;
+        gameQuestion.classList.add("game-question--waiting");
+        gameQuestion.innerHTML = "Ожидаем старт игры от ведущего<span class='waiting-dots' aria-hidden='true'></span>";
+    };
+
+    const setTimerValue = () => {
+        if (!gameTimer || !gameState?.isStarted || gameState.isFinished || getIsHost()) {
+            gameTimer?.classList.add("hidden");
+            stopQuestionTimer();
+            return;
+        }
+
+        const deadlineMs = getQuestionDeadlineMs();
+        if (!deadlineMs) {
+            gameTimer.classList.add("hidden");
+            return;
+        }
+
+        const remaining = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
+        gameTimer.textContent = `Осталось: ${remaining}с`;
+        gameTimer.classList.remove("hidden");
+        gameTimer.classList.toggle("game-timer--danger", remaining <= 5);
+    };
+
+    const startQuestionTimer = () => {
+        stopQuestionTimer();
+        if (getIsHost()) return;
+
+        questionTimerId = setInterval(() => {
+            setTimerValue();
+            renderQuestion();
+        }, 400);
+    };
+
+    const showKickedState = () => {
+        isKickedFromGame = true;
+        stopQuestionTimer();
+        if (gameTimer) gameTimer.classList.add("hidden");
+        if (kickedBanner) kickedBanner.classList.remove("hidden");
+        if (gameAnswers) gameAnswers.innerHTML = "";
+        if (gameQuestion) {
+            gameQuestion.classList.remove("game-question--waiting");
+            gameQuestion.textContent = "Доступ к сессии закрыт.";
+        }
+        if (gameResult) gameResult.textContent = "Вы были исключены из игры.";
+        setGameStatus("Вы были исключены из игры", true);
+    };
 
     const setRoleLayout = () => {
         const isHost = getIsHost();
@@ -410,13 +482,15 @@
         const answeredPlayers = new Set((gameState?.answeredPlayers || []).map((player) => player.trim().toLowerCase()));
         const participants = (gameState?.players || []).filter((player) => !sameName(player, gameState?.hostName));
         const allParticipantsAnswered = participants.length === 0 || participants.every((player) => answeredPlayers.has(player.trim().toLowerCase()));
+        const deadlineMs = getQuestionDeadlineMs();
+        const timeExpired = typeof deadlineMs === "number" && Date.now() >= deadlineMs;
 
         if (controlStartGameButton) {
             controlStartGameButton.disabled = !isHost || !gameState || gameState.isStarted;
         }
 
         if (controlNextQuestionButton) {
-            controlNextQuestionButton.disabled = !isHost || !gameState || !gameState.isStarted || gameState.isFinished || !allParticipantsAnswered;
+            controlNextQuestionButton.disabled = !isHost || !gameState || !gameState.isStarted || gameState.isFinished || (!allParticipantsAnswered && !timeExpired);
         }
 
         if (controlFinishGameButton) {
@@ -640,7 +714,7 @@
         const total = gameState.questionsCount || 0;
         if (questionIndex < 0 || questionIndex >= total || total === 0) {
             if (gameProgress) gameProgress.textContent = "Вопрос 0/0";
-            if (gameQuestion) gameQuestion.textContent = "Ожидаем старт игры от ведущего.";
+            renderWaitingQuestion();
             if (gameAnswers) gameAnswers.innerHTML = "";
             return;
         }
@@ -648,17 +722,25 @@
         const question = gameQuestions[questionIndex];
         if (!question) {
             if (gameProgress) gameProgress.textContent = `Вопрос ${questionIndex + 1}/${total}`;
-            if (gameQuestion) gameQuestion.textContent = "Вопрос загружается...";
+            if (gameQuestion) {
+                gameQuestion.classList.remove("game-question--waiting");
+                gameQuestion.textContent = "Вопрос загружается...";
+            }
             if (gameAnswers) gameAnswers.innerHTML = "";
             return;
         }
 
         if (gameProgress) gameProgress.textContent = `Вопрос ${questionIndex + 1}/${total}`;
-        if (gameQuestion) gameQuestion.textContent = question.question;
+        if (gameQuestion) {
+            gameQuestion.classList.remove("game-question--waiting");
+            gameQuestion.textContent = question.question;
+        }
         if (gameAnswers) gameAnswers.innerHTML = "";
 
         const currentPlayerAnswered = (gameState.answeredPlayers || []).some((player) => sameName(player, currentPlayerName));
         const selectedAnswer = localAnswerByQuestionIndex[questionIndex] || "";
+        const deadlineMs = getQuestionDeadlineMs();
+        const timeExpired = !getIsHost() && typeof deadlineMs === "number" && Date.now() >= deadlineMs;
 
         (question.shuffledAnswers || []).forEach((answer) => {
             const button = document.createElement("button");
@@ -666,8 +748,7 @@
             button.className = "answer-btn";
             button.textContent = answer;
 
-            const shouldDisable = currentPlayerAnswered || gameState.isFinished;
-            button.disabled = shouldDisable;
+            button.disabled = currentPlayerAnswered || gameState.isFinished || timeExpired;
 
             if (currentPlayerAnswered && selectedAnswer) {
                 if (answer === question.correctAnswer) button.classList.add("is-correct");
@@ -687,6 +768,20 @@
         if (!gameState) return;
         setRoleLayout();
 
+        if (isKickedFromGame) {
+            showKickedState();
+            return;
+        }
+
+        const isHost = getIsHost();
+        const isCurrentPlayerInSession = getIsCurrentPlayerInSession();
+        if (!isHost && currentPlayerName && !isCurrentPlayerInSession) {
+            showKickedState();
+            return;
+        }
+
+        if (kickedBanner) kickedBanner.classList.add("hidden");
+
         if (controlPanel) {
             controlPanel.classList.toggle("hidden", !getIsHost());
         }
@@ -703,28 +798,42 @@
         }
 
         if (!gameState.isStarted) {
-            if (gameResult) gameResult.textContent = "Ожидаем старт игры от ведущего.";
-            setGameStatus("Лобби собрано. Ждем старта.");
+            if (gameResult) gameResult.textContent = "";
+            renderWaitingQuestion();
+            if (!isHost) {
+                setGameStatus("Ожидаем старт игры от ведущего.");
+                if (gameTimer) gameTimer.classList.add("hidden");
+            } else {
+                setGameStatus("Лобби собрано. Ждем старта.");
+            }
             renderQuestion();
             return;
         }
 
         if (gameState.isFinished) {
+            stopQuestionTimer();
             setGameStatus("Игра завершена");
             if (gameResult) gameResult.textContent = "Раунд завершен. Итоговая таблица выше.";
             if (gameAnswers) gameAnswers.innerHTML = "";
             if (gameQuestion) gameQuestion.textContent = "Спасибо за игру";
             if (gameProgress) gameProgress.textContent = `Итог: ${gameState.questionsCount}/${gameState.questionsCount}`;
+            if (gameTimer) gameTimer.classList.add("hidden");
             return;
         }
 
         if (gameResult) gameResult.textContent = "";
-        if (getIsHost()) {
+        if (isHost) {
             const answeredPlayers = (gameState.answeredPlayers || []).length;
             const participantsCount = (gameState.players || []).filter((player) => !sameName(player, gameState.hostName)).length;
             setGameStatus(`Ответили ${answeredPlayers}/${participantsCount}. Переключение доступно после ответов.`);
+            stopQuestionTimer();
+            if (gameTimer) gameTimer.classList.add("hidden");
         } else {
-            setGameStatus("Выбери один из допустимых вариантов ответа");
+            const deadlineMs = getQuestionDeadlineMs();
+            const timeExpired = typeof deadlineMs === "number" && Date.now() >= deadlineMs;
+            setGameStatus(timeExpired ? "Время вышло. Ожидаем следующий вопрос." : "Выбери один из допустимых вариантов ответа");
+            startQuestionTimer();
+            setTimerValue();
         }
         renderQuestion();
     };
@@ -754,7 +863,7 @@
 
         gameStateTimerId = setInterval(() => {
             void refreshGameState();
-        }, 2000);
+        }, 1000);
     };
 
     const triggerStartGame = async () => {
@@ -800,11 +909,14 @@
 
     const showRoundControls = () => {
         currentPlayerName = getPlayerName();
+        isKickedFromGame = false;
         gamePanel?.classList.remove("hidden");
         if (gameResult) gameResult.textContent = "";
         if (gameAnswers) gameAnswers.innerHTML = "";
-        if (gameQuestion) gameQuestion.textContent = "Ожидаем старт игры от ведущего.";
+        renderWaitingQuestion();
         if (gameProgress) gameProgress.textContent = "Вопрос 0/0";
+        if (gameTimer) gameTimer.classList.add("hidden");
+        if (kickedBanner) kickedBanner.classList.add("hidden");
         setGameStatus("Ожидание старта");
         setRoleLayout();
         setControlButtons();

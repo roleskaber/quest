@@ -9,6 +9,7 @@ public class GameSessionStore : IGameSessionStore
 {
     private readonly IDbContextFactory<QuestContext> _dbContextFactory;
     private readonly Random _random = new();
+    private const int DefaultQuestionTimeLimitSeconds = 20;
 
     public GameSessionStore(IDbContextFactory<QuestContext> dbContextFactory)
     {
@@ -31,6 +32,8 @@ public class GameSessionStore : IGameSessionStore
             Scores = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             AnsweredPlayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             CurrentQuestionIndex = -1,
+            QuestionStartedAt = null,
+            QuestionTimeLimitSeconds = DefaultQuestionTimeLimitSeconds,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -44,6 +47,8 @@ public class GameSessionStore : IGameSessionStore
             ScoresJson = JsonSerializer.Serialize(session.Scores),
             AnsweredPlayersJson = JsonSerializer.Serialize(session.AnsweredPlayers),
             CurrentQuestionIndex = session.CurrentQuestionIndex,
+            QuestionStartedAt = session.QuestionStartedAt,
+            QuestionTimeLimitSeconds = session.QuestionTimeLimitSeconds,
             IsStarted = session.IsStarted,
             IsFinished = session.IsFinished,
             CreatedAt = session.CreatedAt
@@ -108,6 +113,8 @@ public class GameSessionStore : IGameSessionStore
         session.IsStarted = true;
         session.IsFinished = false;
         session.CurrentQuestionIndex = session.QuestionIds.Count > 0 ? 0 : -1;
+        session.QuestionStartedAt = session.CurrentQuestionIndex >= 0 ? DateTimeOffset.UtcNow : null;
+        session.QuestionTimeLimitSeconds = DefaultQuestionTimeLimitSeconds;
         session.AnsweredPlayers.Clear();
 
         foreach (var player in session.Players)
@@ -130,12 +137,15 @@ public class GameSessionStore : IGameSessionStore
         if (session.CurrentQuestionIndex >= session.QuestionIds.Count - 1)
         {
             session.IsFinished = true;
+            session.QuestionStartedAt = null;
             session.AnsweredPlayers.Clear();
             SaveSession(db, session);
             return BuildState(session);
         }
 
         session.CurrentQuestionIndex += 1;
+        session.QuestionStartedAt = DateTimeOffset.UtcNow;
+        session.QuestionTimeLimitSeconds = DefaultQuestionTimeLimitSeconds;
         session.AnsweredPlayers.Clear();
         SaveSession(db, session);
         return BuildState(session);
@@ -148,6 +158,7 @@ public class GameSessionStore : IGameSessionStore
         if (session == null) return null;
 
         session.IsFinished = true;
+        session.QuestionStartedAt = null;
         session.AnsweredPlayers.Clear();
         SaveSession(db, session);
         return BuildState(session);
@@ -212,6 +223,7 @@ public class GameSessionStore : IGameSessionStore
         if (!session.IsStarted || session.IsFinished) return BuildState(session);
         if (session.CurrentQuestionIndex < 0 || session.CurrentQuestionIndex >= session.QuestionIds.Count) return BuildState(session);
         if (!session.Players.Any(p => p.Equals(playerName, StringComparison.OrdinalIgnoreCase))) return BuildState(session);
+        if (IsQuestionExpired(session, DateTimeOffset.UtcNow)) return BuildState(session);
 
         var firstAnswer = session.AnsweredPlayers.Add(playerName);
         if (!firstAnswer) return BuildState(session);
@@ -242,6 +254,8 @@ public class GameSessionStore : IGameSessionStore
         entity.ScoresJson = JsonSerializer.Serialize(session.Scores);
         entity.AnsweredPlayersJson = JsonSerializer.Serialize(session.AnsweredPlayers);
         entity.CurrentQuestionIndex = session.CurrentQuestionIndex;
+        entity.QuestionStartedAt = session.QuestionStartedAt;
+        entity.QuestionTimeLimitSeconds = session.QuestionTimeLimitSeconds;
         entity.IsStarted = session.IsStarted;
         entity.IsFinished = session.IsFinished;
 
@@ -266,6 +280,8 @@ public class GameSessionStore : IGameSessionStore
             Scores = new Dictionary<string, int>(scores, StringComparer.OrdinalIgnoreCase),
             AnsweredPlayers = new HashSet<string>(answeredPlayers, StringComparer.OrdinalIgnoreCase),
             CurrentQuestionIndex = entity.CurrentQuestionIndex,
+            QuestionStartedAt = entity.QuestionStartedAt,
+            QuestionTimeLimitSeconds = entity.QuestionTimeLimitSeconds > 0 ? entity.QuestionTimeLimitSeconds : DefaultQuestionTimeLimitSeconds,
             IsStarted = entity.IsStarted,
             IsFinished = entity.IsFinished,
             CreatedAt = entity.CreatedAt
@@ -281,10 +297,18 @@ public class GameSessionStore : IGameSessionStore
             session.IsFinished,
             session.CurrentQuestionIndex,
             session.QuestionIds.Count,
+            session.QuestionStartedAt,
+            session.QuestionTimeLimitSeconds,
             [.. session.Players],
             new Dictionary<string, int>(session.Scores, StringComparer.OrdinalIgnoreCase),
             [.. session.AnsweredPlayers]
         );
+    }
+
+    private static bool IsQuestionExpired(GameSession session, DateTimeOffset now)
+    {
+        if (!session.QuestionStartedAt.HasValue || session.QuestionTimeLimitSeconds <= 0) return false;
+        return now >= session.QuestionStartedAt.Value.AddSeconds(session.QuestionTimeLimitSeconds);
     }
 
     private string GenerateUniqueCode()
@@ -349,6 +373,8 @@ public class GameSession
     public required Dictionary<string, int> Scores { get; init; }
     public required HashSet<string> AnsweredPlayers { get; init; }
     public required int CurrentQuestionIndex { get; set; }
+    public DateTimeOffset? QuestionStartedAt { get; set; }
+    public int QuestionTimeLimitSeconds { get; set; }
     public bool IsStarted { get; set; }
     public bool IsFinished { get; set; }
     public required DateTimeOffset CreatedAt { get; init; }
@@ -361,6 +387,8 @@ public record GameSessionState(
     bool IsFinished,
     int CurrentQuestionIndex,
     int QuestionsCount,
+    DateTimeOffset? QuestionStartedAt,
+    int QuestionTimeLimitSeconds,
     List<string> Players,
     Dictionary<string, int> Scores,
     List<string> AnsweredPlayers
